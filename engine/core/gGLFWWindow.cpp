@@ -75,14 +75,13 @@ void gGLFWWindow::initialize(int width, int height, int windowMode) {
 	    	glfwSetWindowMonitor(window, monitor, 0, 0, width, height, currentrefreshrate);
 	    }
 	}
+	glfwGetWindowSize(window, &width, &height);
 
-#ifndef LINUX
 	GLFWimage images[1];
 	std::string iconpath = gGetImagesDir() + "gameicon/icon.png";
 	images[0].pixels = stbi_load(iconpath.c_str(), &images[0].width, &images[0].height, 0, 4); //rgba channels
 	glfwSetWindowIcon(window, 1, images);
 	stbi_image_free(images[0].pixels);
-#endif
 
 	glfwMakeContextCurrent(window);
 	glewExperimental = GL_TRUE;
@@ -104,10 +103,12 @@ void gGLFWWindow::initialize(int width, int height, int windowMode) {
 
 	// Notify OpenGL if the window size changed
 	glfwSetFramebufferSizeCallback(window, gGLFWWindow::framebuffer_size_callback);
+	glfwSetCharCallback(window, gGLFWWindow::character_callback);
 	glfwSetKeyCallback(window, gGLFWWindow::key_callback);
 	glfwSetCursorPosCallback(window, gGLFWWindow::mouse_pos_callback);
 	glfwSetMouseButtonCallback(window, gGLFWWindow::mouse_button_callback);
 	glfwSetCursorEnterCallback(window, gGLFWWindow::mouse_enter_callback);
+	glfwSetScrollCallback(window, gGLFWWindow::mouse_scroll_callback);
 #endif
 }
 
@@ -141,6 +142,9 @@ void gGLFWWindow::framebuffer_size_callback(GLFWwindow* window, int width, int h
     (static_cast<gGLFWWindow *>(glfwGetWindowUserPointer(window)))->setSize(width, height);
 }
 
+void gGLFWWindow::character_callback(GLFWwindow* window, unsigned int keycode) {
+	 (static_cast<gGLFWWindow *>(glfwGetWindowUserPointer(window)))->onCharEvent(keycode);
+}
 
 void gGLFWWindow::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 	if (action != GLFW_RELEASE && action != GLFW_PRESS) return;
@@ -159,6 +163,10 @@ void gGLFWWindow::mouse_button_callback(GLFWwindow* window, int button, int acti
 
 void gGLFWWindow::mouse_enter_callback(GLFWwindow* window, int entered) {
 	(static_cast<gGLFWWindow *>(glfwGetWindowUserPointer(window)))->onMouseEnterEvent(entered);
+}
+
+void gGLFWWindow::mouse_scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
+	(static_cast<gGLFWWindow *>(glfwGetWindowUserPointer(window)))->onMouseScrollEvent(xoffset, yoffset);
 }
 #endif
 

@@ -23,12 +23,14 @@ public:
 	virtual void update();
 	virtual void draw();
 
+	virtual void charPressed(unsigned int key);
 	virtual void keyPressed(int key);
 	virtual void keyReleased(int key);
 	virtual void mouseMoved(int x, int y );
 	virtual void mouseDragged(int x, int y, int button);
 	virtual void mousePressed(int x, int y, int button);
 	virtual void mouseReleased(int x, int y, int button);
+	virtual void mouseScrolled(int x, int y);
 	virtual void mouseEntered();
 	virtual void mouseExited();
 
@@ -42,8 +44,6 @@ protected:
 
 	int getWidth();
 	int getHeight();
-	int getScreenWidth();
-	int getScreenHeight();
 
 	void setColor(int r, int g, int b, int a = 255);
 	void setColor(gColor color);

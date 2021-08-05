@@ -14,6 +14,9 @@
 #include <iterator>
 #include <unistd.h>
 
+bool gLog::isloggingenabled = true;
+std::string gLog::loglevelname[] = {"INFO", "DEBUG", "WARNING", "ERROR"};
+
 
 int gDefaultWidth() {
 	return 960;
@@ -21,6 +24,10 @@ int gDefaultWidth() {
 
 int gDefaultHeight() {
 	return 540;
+}
+
+int gDefaultScreenScaling() {
+	return 2;
 }
 
 float gRadToDeg(float radians) {
@@ -142,6 +149,19 @@ void gStringReplace(std::string& input, const std::string& searchStr, const std:
 	}
 }
 
+std::vector<std::string> gSplitString(const std::string& textToSplit, const std::string& delimiter) {
+	std::vector<std::string> tokens;
+	size_t prev = 0, pos = 0;
+	do {
+		pos = textToSplit.find(delimiter, prev);
+		if (pos == std::string::npos) pos = textToSplit.length();
+		std::string token = textToSplit.substr(prev, pos - prev);
+		if (!token.empty()) tokens.push_back(token);
+		prev = pos + delimiter.length();
+	} while (pos < textToSplit.length() && prev < textToSplit.length());
+	return tokens;
+}
+
 std::string gToLower(const std::string& src, const std::string & locale) {
 	std::string dst;
 	std::locale loc = gGetLocale(locale);
@@ -211,7 +231,15 @@ utf8::iterator<std::string::const_reverse_iterator> gUTF8Iterator::rend() const 
 }
 
 std::locale gGetLocale(const std::string & locale) {
-	return std::locale(locale.c_str());
+	std::locale loc;
+
+#ifdef APPLE
+	loc = std::locale(std::locale(), new std::ctype<char>);
+#else
+	loc = std::locale(locale.c_str());
+#endif
+
+	return loc;
 }
 
 int gToInt(const std::string& intString) {
@@ -221,6 +249,76 @@ int gToInt(const std::string& intString) {
 	return x;
 }
 
+std::string gWStrToStr(const std::wstring& WS) {
+	const unsigned wlen = WS.length();
+	char buf[wlen * sizeof(std::wstring::value_type) + 1];
+	const ssize_t res = std::wcstombs(buf, WS.c_str(), sizeof(buf));
+	return res != static_cast<std::size_t>(-1) ? buf : "?";
+}
+
+gLog::gLog() {
+	loglevel = LOGLEVEL_INFO;
+	logtag = "";
+}
+
+gLog::gLog(const std::string& tag) {
+	loglevel = LOGLEVEL_INFO;
+	logtag = tag;
+}
+
+gLog::~gLog() {
+	if(!isloggingenabled) return;
+
+	if(loglevel == LOGLEVEL_ERROR) {
+		std::cerr << "[" << loglevelname[loglevel] << "] " << logtag << ": " << logmessage.str() << std::endl;
+	} else {
+		std::cout << "[" << loglevelname[loglevel] << "] " << logtag << ": " << logmessage.str() << std::endl;
+	}
+}
+
+void gLog::setLoggingEnabled(bool isLoggingEnabled) {
+	isloggingenabled = isLoggingEnabled;
+}
+
+bool gLog::isLoggingEnabled() {
+	return isloggingenabled;
+}
+
+std::string gLog::getLogLevelName(int logLevel) {
+	return loglevelname[logLevel];
+}
+
+gLogi::gLogi(const std::string& tag) {
+	loglevel = LOGLEVEL_INFO;
+	logtag = tag;
+}
+
+gLogd::gLogd(const std::string& tag) {
+	loglevel = LOGLEVEL_DEBUG;
+	logtag = tag;
+}
+
+gLogw::gLogw(const std::string& tag) {
+	loglevel = LOGLEVEL_WARNING;
+	logtag = tag;
+}
+
+gLoge::gLoge(const std::string& tag) {
+	loglevel = LOGLEVEL_ERROR;
+	logtag = tag;
+}
+
+void gEnableLogging() {
+	gLog::setLoggingEnabled(true);
+}
+
+void gDisableLogging() {
+	gLog::setLoggingEnabled(false);
+}
+
+bool gIsLoggingEnabled() {
+	return gLog::isLoggingEnabled();
+}
 
 gUtils::gUtils() {
 

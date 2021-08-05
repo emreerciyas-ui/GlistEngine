@@ -84,12 +84,45 @@ gBoundingBox gBoundingBox::merge(const gBoundingBox& other) {
 }
 
 bool gBoundingBox::intersects(gRay& ray) {
-	return distance(ray) == std::numeric_limits<float>::min() ? false : true;
+	raydist = distance(ray);
+	return raydist == std::numeric_limits<float>::min() ? false : true && raydist <= glm::length(ray.getDirection());
 }
 
 float gBoundingBox::distance(gRay& ray) {
 	ro = ray.getOrigin();
 	rd = ray.getDirection();
+	dmin = std::numeric_limits<float>::min();
+	dmax = std::numeric_limits<float>::max();
+
+	for (di = 0; di < componentnum; di++) {
+		dimlo = (minf[di] - ro[di]) / rd[di];
+		dimhi = (maxf[di] - ro[di]) / rd[di];
+
+		if (dimlo > dimhi) {
+			dimtemp = dimlo;
+			dimlo = dimhi;
+			dimhi = dimtemp;
+		}
+
+		if (dimhi < dmin || dimlo > dmax) {
+			return std::numeric_limits<float>::min();
+		}
+
+		if (dimlo > dmin) dmin = dimlo;
+		if (dimhi < dmax) dmax = dimhi;
+	}
+
+	return dmin > dmax ? std::numeric_limits<float>::min() : dmin;
+}
+
+bool gBoundingBox::intersects(gRay* ray) {
+	raydist = distance(ray);
+	return raydist == std::numeric_limits<float>::min() ? false : true && raydist <= glm::length(ray->getDirection());
+}
+
+float gBoundingBox::distance(gRay* ray) {
+	ro = ray->getOrigin();
+	rd = ray->getDirection();
 	dmin = std::numeric_limits<float>::min();
 	dmax = std::numeric_limits<float>::max();
 

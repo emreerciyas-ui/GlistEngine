@@ -9,7 +9,7 @@ endif()
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -std=c++14 -DNDEBUG -DENABLE_BOOST_WORKAROUND=ON -fuse-ld=gold -Wuninitialized -Wmultichar -ffunction-sections -fdata-sections -fexceptions -frtti -fpermissive -fPIC -O2")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -g -std=c++14 -DDEBUG -DENABLE_BOOST_WORKAROUND=ON -fuse-ld=gold -Wuninitialized -Wmultichar -ffunction-sections -fdata-sections -fexceptions -frtti -fpermissive -fPIC -O0")
 if(NOT APPLE)
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -v -Wl,--no-as-needed -Wl,--gc-sections -Wl,--unresolved-symbols=report-all")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -v -pthread -Wl,--no-as-needed -Wl,--gc-sections -Wl,--unresolved-symbols=report-all")
 endif()
 
 
@@ -35,6 +35,13 @@ if(APPLE)
 	set(SYS_NAME "macos")
 endif(APPLE)
 
+set(CMAKE_THREAD_LIBS_INIT "-lpthread")
+set(CMAKE_HAVE_THREADS_LIBRARY 1)
+set(CMAKE_USE_WIN32_THREADS_INIT 0)
+set(CMAKE_USE_PTHREADS_INIT 1)
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+
+
 if(NOT DEFINED CMAKE_SUPPRESS_DEVELOPER_WARNINGS)
     set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS 1 CACHE INTERNAL "No dev warnings")
 endif()
@@ -52,7 +59,7 @@ if(NOT DEFINED LIBS_DIR)
     set(LIBS_DIR ${MAIN_DIR}/libs)
 endif()
 if(NOT DEFINED PLUGINS_DIR)
-    set(PLUGINS_DIR ${MAIN_DIR}/plugins)
+    set(PLUGINS_DIR ${TOP_DIR}/glistplugins)
 endif()
 if(NOT DEFINED ZBIN_DIR)
 	set(ZBIN_DIR ${TOP_DIR}/zbin)
@@ -79,6 +86,7 @@ set(PLUGIN_SRCS)
 set(PLUGIN_INCLUDES)
 set(PLUGIN_LINKDIRS)
 set(PLUGIN_LINKLIBS)
+set(PLUGIN_LIBDIRS)
 
 foreach(pluginname ${PLUGINS})
 	include(${PLUGINS_DIR}/${pluginname}/CMakeLists.txt)
@@ -88,9 +96,12 @@ endforeach()
 ########## CPP SOURCE FILES ##########
 set(SRC_FILES
 	${PLUGIN_SRCS}
+	${MINGW64_DIR}/lib/sqlite3.c
 	${ENGINE_DIR}/types/gColor.cpp
+	${ENGINE_DIR}/utils/gThread.cpp
 	${ENGINE_DIR}/utils/gUtils.cpp
 	${ENGINE_DIR}/utils/gFile.cpp
+	${ENGINE_DIR}/utils/gHttpFile.cpp
 	${ENGINE_DIR}/graphics/gShader.cpp
 	${ENGINE_DIR}/core/gObject.cpp
 	${ENGINE_DIR}/core/gRenderer.cpp
@@ -100,14 +111,21 @@ set(SRC_FILES
 	${ENGINE_DIR}/graphics/gSkybox.cpp
 	${ENGINE_DIR}/graphics/gNode.cpp
 	${ENGINE_DIR}/graphics/gLight.cpp
+	${ENGINE_DIR}/graphics/gShadowMap.cpp
 	${ENGINE_DIR}/graphics/gCamera.cpp
 	${ENGINE_DIR}/graphics/gFont.cpp
 	${ENGINE_DIR}/graphics/gMaterial.cpp
 	${ENGINE_DIR}/graphics/gMesh.cpp
 	${ENGINE_DIR}/graphics/gSkinnedMesh.cpp
 	${ENGINE_DIR}/graphics/gModel.cpp
+	${ENGINE_DIR}/utils/gDatabase.cpp
+	${ENGINE_DIR}/utils/gAssetLoader.cpp
+	${ENGINE_DIR}/graphics/primitives/gLine.cpp
+	${ENGINE_DIR}/graphics/primitives/gCircle.cpp
+	${ENGINE_DIR}/graphics/primitives/gRectangle.cpp
 	${ENGINE_DIR}/graphics/primitives/gPlane.cpp
 	${ENGINE_DIR}/graphics/primitives/gBox.cpp
+	${ENGINE_DIR}/graphics/primitives/gSphere.cpp
 	${ENGINE_DIR}/graphics/gVbo.cpp
 	${ENGINE_DIR}/graphics/gFbo.cpp
 	${ENGINE_DIR}/graphics/gRay.cpp
@@ -138,7 +156,6 @@ add_library(GlistEngine SHARED
 
 ########## INCLUDE DIRECTORIES ##########
 set(INC_DIRS
-	${PLUGIN_INCLUDES}
 	${LIBS_DIR}/stb/include
 	${LIBS_DIR}/fmod/include
 	${LIBS_DIR}/utf8/include
@@ -150,6 +167,7 @@ set(INC_DIRS
     ${ENGINE_DIR}/graphics/primitives
     ${ENGINE_DIR}/base
     ${ENGINE_DIR}/core
+	${PLUGIN_INCLUDES}
 #	${CMAKE_BINARY_DIR}/generated
 )
 
@@ -159,12 +177,18 @@ if(WIN32)
 		${MINGW64_DIR}/include
 		${MINGW64_DIR}/lib/gcc/x86_64-w64-mingw32/8.1.0/include/c++
 		${MINGW64_DIR}/include/freetype2
+		${MINGW64_DIR}/include/ffmpeg
+		${MINGW64_DIR}/include/sqlite
+		${MINGW64_DIR}/include/curl
 	)
 elseif(LINUX)
 	list(APPEND INC_DIRS
 		${MINGW64_DIR}/include
 		${MINGW64_DIR}/include/freetype2
-#		/usr/include/freetype2
+		${MINGW64_DIR}/include/sqlite
+		# TODO: FFMPEG
+		
+		/usr/include/freetype2
 		/usr/include
 		/usr/local/lib
 #		${MINGW64_DIR}/lib
@@ -178,8 +202,10 @@ elseif(APPLE)
   		/usr/local/Cellar/glm/0.9.9.8/include
   		/usr/local/Cellar/assimp/5.0.1/include
   		/usr/local/include
+		${MINGW64_DIR}/include/sqlite
 #  		/usr/local/Cellar/glfw/3.3.2/include
 #  		/usr/local/include
+		# TODO: FFMPEG
   	)
 elseif(ANDROID)
 	list(APPEND INC_DIRS
@@ -191,6 +217,11 @@ endif(WIN32)
 
 include_directories(${INC_DIRS})
 
+#message(WARNING "PLUGIN_LIBDIRS: ${PLUGIN_LIBDIRS}")
+FOREACH(PLIBDIR ${PLUGIN_LIBDIRS})
+	set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -L${PLIBDIR}")
+ENDFOREACH()
+
 
 ########## FIND LIBRARIES ##########
 if(WIN32)
@@ -201,6 +232,7 @@ if(WIN32)
 			${PLUGIN_LINKDIRS}
 	)
 elseif(LINUX)
+	# TODO: FFMPEG
 #	find_library(Lib_Freetype2 freetype HINTS /usr/lib/x86_64-linux-gnu)
 	
 #	execute_process(COMMAND 
@@ -340,12 +372,20 @@ if(WIN32)
 		fmod
 		assimp
 		freetype
+		curl
 		glfw3
 		opengl32
 		glew32
 		dbghelp
 		msvcr100
 		psapi
+#		swscale-5
+#		swresample-3
+#		avutil-56
+#		avformat-58
+#		avfilter-7
+#		avdevice-58
+#		avcodec-58
 	)
 elseif(LINUX)
 	list(APPEND LINK_LIBS
@@ -354,9 +394,12 @@ elseif(LINUX)
 		assimp
 		freetype
 		libpng
+		curl
 		glfw
 		GL
 		GLEW
+		dl
+	# TODO: FFMPEG
 	)
 elseif(APPLE)
 	list(APPEND LINK_LIBS
@@ -367,6 +410,7 @@ elseif(APPLE)
 		${Lib_glfw}
 		${Lib_GL}
 		${Lib_GLEW}
+	# TODO: FFMPEG
 	)
 elseif(ANDROID)
 	list(APPEND LINK_LIBS

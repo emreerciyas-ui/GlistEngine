@@ -54,6 +54,8 @@ public:
 
 	bool intersects(gRay& ray);
 	float distance(gRay& ray);
+	bool intersects(gRay* ray);
+	float distance(gRay* ray);
 
 	glm::vec3 getMin();
 	glm::vec3 getMax();
@@ -77,6 +79,7 @@ private:
 	int di;
 	glm::vec3 ro, rd;
 	float dmin, dmax;
+	float raydist;
 };
 
 #endif /* GRAPHICS_GBOUNDINGBOX_H_ */

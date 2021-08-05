@@ -31,6 +31,10 @@ void gBaseCanvas::draw() {
 
 }
 
+void gBaseCanvas::charPressed(unsigned int key) {
+
+}
+
 void gBaseCanvas::keyPressed(int key) {
 
 }
@@ -52,6 +56,10 @@ void gBaseCanvas::mousePressed(int x, int y, int button) {
 }
 
 void gBaseCanvas::mouseReleased(int x, int y, int button) {
+
+}
+
+void gBaseCanvas::mouseScrolled(int x, int y) {
 
 }
 
@@ -78,14 +86,6 @@ int gBaseCanvas::getWidth() {
 
 int gBaseCanvas::getHeight() {
 	return renderer->getHeight();
-}
-
-int gBaseCanvas::getScreenWidth() {
-	return renderer->getScreenWidth();
-}
-
-int gBaseCanvas::getScreenHeight() {
-	return renderer->getScreenHeight();
 }
 
 

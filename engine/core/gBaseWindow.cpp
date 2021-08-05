@@ -109,6 +109,10 @@ std::string gBaseWindow::getTitle() {
 	return title;
 }
 
+void gBaseWindow::onCharEvent(unsigned int key) {
+	appmanager->onCharEvent(key);
+}
+
 void gBaseWindow::onKeyEvent(int key, int action) {
 	appmanager->onKeyEvent(key, action);
 }
@@ -123,6 +127,10 @@ void gBaseWindow::onMouseButtonEvent(int button, int action, double xpos, double
 
 void gBaseWindow::onMouseEnterEvent(int entered) {
 	appmanager->onMouseEnterEvent(entered);
+}
+
+void gBaseWindow::onMouseScrollEvent(double xoffset, double yoffset) {
+	appmanager->onMouseScrollEvent(xoffset, yoffset);
 }
 
 void gBaseWindow::sighandler(int signum) {

@@ -17,7 +17,7 @@
 #endif
 
 
-void gStartEngine(gBaseApp *baseApp, std::string appName, int windowMode, int width, int height) {
+void gStartEngine(gBaseApp* baseApp, std::string appName, int windowMode, int width, int height) {
 	gAppManager appmanager;
 	gGLFWWindow gbwindow;
 	gbwindow.setAppManager(&appmanager);
@@ -25,7 +25,18 @@ void gStartEngine(gBaseApp *baseApp, std::string appName, int windowMode, int wi
 	gbwindow.setTitle(appName);
 	appmanager.setWindow(&gbwindow);
 	baseApp->setAppManager(&appmanager);
-	appmanager.runApp(appName, baseApp, width, height, windowMode);
+	appmanager.runApp(appName, baseApp, width, height, windowMode, width, height, gRenderer::SCREENSCALING_AUTO);
+}
+
+void gStartEngine(gBaseApp* baseApp, std::string appName, int windowMode, int width, int height, int screenScaling, int unitWidth, int unitHeight) {
+	gAppManager appmanager;
+	gGLFWWindow gbwindow;
+	gbwindow.setAppManager(&appmanager);
+	if (appName == "") appName = "GlistApp";
+	gbwindow.setTitle(appName);
+	appmanager.setWindow(&gbwindow);
+	baseApp->setAppManager(&appmanager);
+	appmanager.runApp(appName, baseApp, width, height, windowMode, unitWidth, unitHeight, screenScaling);
 }
 
 
@@ -58,7 +69,7 @@ gAppManager::gAppManager() {
 gAppManager::~gAppManager() {
 }
 
-void gAppManager::runApp(std::string appName, gBaseApp *baseApp, int width, int height, int windowMode) {
+void gAppManager::runApp(std::string appName, gBaseApp *baseApp, int width, int height, int windowMode, int unitWidth, int unitHeight, int screenScaling) {
 	appname = appName;
 	app = baseApp;
 
@@ -66,8 +77,9 @@ void gAppManager::runApp(std::string appName, gBaseApp *baseApp, int width, int 
 	window->initialize(width, height, windowMode);
 
 	tempbasecanvas = new gBaseCanvas(app);
-//	tempbasecanvas->loadRenderMaterials();
 	tempbasecanvas->setScreenSize(width, height);
+	tempbasecanvas->setUnitScreenSize(unitWidth, unitHeight);
+	tempbasecanvas->setScreenScaling(screenScaling);
 
 	canvasmanager = new gCanvasManager();
 
@@ -120,6 +132,10 @@ void gAppManager::setCurrentCanvas(gBaseCanvas *baseCanvas) {
 	canvasmanager->setCurrentCanvas(canvas);
 }
 
+gBaseCanvas* gAppManager::getCurrentCanvas() {
+	return canvas;
+}
+
 void gAppManager::setScreenSize(int width, int height) {
 	tempbasecanvas->setScreenSize(width, height);
 }
@@ -143,13 +159,22 @@ double gAppManager::getElapsedTime() {
 	return timediff2.count();
 }
 
+void gAppManager::onCharEvent(unsigned int key) {
+#if defined(WIN32) || defined(LINUX) || defined(APPLE)
+	for (upi = 0; upi < gBasePlugin::usedplugins.size(); upi++) gBasePlugin::usedplugins[upi]->charPressed(key);
+	canvasmanager->getCurrentCanvas()->charPressed(key);
+#endif
+}
+
 void gAppManager::onKeyEvent(int key, int action) {
-#if defined(WIN32) || defined(LINUX)
+#if defined(WIN32) || defined(LINUX) || defined(APPLE)
 	switch(action) {
 	case GLFW_RELEASE:
+		for (upi = 0; upi < gBasePlugin::usedplugins.size(); upi++) gBasePlugin::usedplugins[upi]->keyReleased(key);
 		canvasmanager->getCurrentCanvas()->keyReleased(key);
 		break;
 	case GLFW_PRESS:
+		for (upi = 0; upi < gBasePlugin::usedplugins.size(); upi++) gBasePlugin::usedplugins[upi]->keyPressed(key);
 		canvasmanager->getCurrentCanvas()->keyPressed(key);
 		break;
 	}
@@ -158,22 +183,41 @@ void gAppManager::onKeyEvent(int key, int action) {
 
 void gAppManager::onMouseMoveEvent(double xpos, double ypos) {
 	if (!canvasmanager->getCurrentCanvas()) return;
-	if (pressed) canvasmanager->getCurrentCanvas()->mouseDragged(xpos, ypos, pressed);
-	else canvasmanager->getCurrentCanvas()->mouseMoved(xpos, ypos);
+	if (gRenderer::getScreenScaling() > gRenderer::SCREENSCALING_NONE) {
+		xpos = gRenderer::scaleX(xpos);
+		ypos = gRenderer::scaleY(ypos);
+	}
+	if (pressed) {
+		for (upi = 0; upi < gBasePlugin::usedplugins.size(); upi++) gBasePlugin::usedplugins[upi]->mouseDragged(xpos, ypos, pressed);
+		canvasmanager->getCurrentCanvas()->mouseDragged(xpos, ypos, pressed);
+	} else {
+		for (upi = 0; upi < gBasePlugin::usedplugins.size(); upi++) gBasePlugin::usedplugins[upi]->mouseMoved(xpos, ypos);
+		canvasmanager->getCurrentCanvas()->mouseMoved(xpos, ypos);
+	}
 }
 
 void gAppManager::onMouseButtonEvent(int button, int action, double xpos, double ypos) {
 	if (!canvasmanager->getCurrentCanvas()) return;
-#if defined(WIN32) || defined(LINUX)
+#if defined(WIN32) || defined(LINUX) || defined(APPLE)
 	switch(action) {
 	case GLFW_PRESS:
 		buttonpressed[button] = true;
 		pressed |= myPow(2, button + 1);
+		if (gRenderer::getScreenScaling() > gRenderer::SCREENSCALING_NONE) {
+			xpos = gRenderer::scaleX(xpos);
+			ypos = gRenderer::scaleY(ypos);
+		}
+		for (upi = 0; upi < gBasePlugin::usedplugins.size(); upi++) gBasePlugin::usedplugins[upi]->mousePressed(xpos, ypos, button);
 		canvasmanager->getCurrentCanvas()->mousePressed(xpos, ypos, button);
 		break;
 	case GLFW_RELEASE:
 		buttonpressed[button] = false;
 		pressed &= ~myPow(2, button + 1);
+		if (gRenderer::getScreenScaling() > gRenderer::SCREENSCALING_NONE) {
+			xpos = gRenderer::scaleX(xpos);
+			ypos = gRenderer::scaleY(ypos);
+		}
+		for (upi = 0; upi < gBasePlugin::usedplugins.size(); upi++) gBasePlugin::usedplugins[upi]->mouseReleased(xpos, ypos, button);
 		canvasmanager->getCurrentCanvas()->mouseReleased(xpos, ypos, button);
 		break;
 	}
@@ -190,11 +234,17 @@ void gAppManager::onMouseEnterEvent(int entered) {
 	if (!canvasmanager->getCurrentCanvas()) return;
 	if (entered) {
 		ismouseentered = true;
+		for (upi = 0; upi < gBasePlugin::usedplugins.size(); upi++) gBasePlugin::usedplugins[upi]->mouseEntered();
 		canvasmanager->getCurrentCanvas()->mouseEntered();
 	} else {
 		ismouseentered = false;
+		for (upi = 0; upi < gBasePlugin::usedplugins.size(); upi++) gBasePlugin::usedplugins[upi]->mouseExited();
 		canvasmanager->getCurrentCanvas()->mouseExited();
 	}
 }
 
-
+void gAppManager::onMouseScrollEvent(double xoffset, double yoffset) {
+	if (!canvasmanager->getCurrentCanvas()) return;
+	for (upi = 0; upi < gBasePlugin::usedplugins.size(); upi++) gBasePlugin::usedplugins[upi]->mouseScrolled(xoffset, yoffset);
+	canvasmanager->getCurrentCanvas()->mouseScrolled(xoffset, yoffset);
+}
